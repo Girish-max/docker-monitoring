@@ -31,45 +31,100 @@ jobs:
         run: docker compose up -d
 
       - name: Wait for Services
-        run: sleep 40
+        run: sleep 30
 
       - name: Show Docker Images
         run: docker images
 
       - name: Show Running Containers
-        run: docker ps -a
+        run: |
+          echo "==============================="
+          echo "RUNNING CONTAINERS"
+          echo "==============================="
+          docker ps
+
+          echo ""
+          echo "==============================="
+          echo "ALL CONTAINERS"
+          echo "==============================="
+          docker ps -a
+
+          echo ""
+          echo "==============================="
+          echo "DOCKER COMPOSE STATUS"
+          echo "==============================="
+          docker compose ps
+
+      - name: Inspect Multi-stage Container
+        run: |
+          echo "==============================="
+          echo "MULTI-STAGE CONTAINER STATUS"
+          echo "==============================="
+          docker inspect multi-stage \
+          --format='Status={{.State.Status}}
+          ExitCode={{.State.ExitCode}}
+          Started={{.State.StartedAt}}
+          Finished={{.State.FinishedAt}}'
 
       - name: Show CPU & Memory Usage
-        run: docker stats --no-stream
+        run: |
+          echo "==============================="
+          echo "DOCKER STATS"
+          echo "==============================="
+          docker stats --no-stream
 
       - name: Compare Image Sizes
         run: |
           echo "==============================="
-          echo "Docker Image Size Comparison"
+          echo "IMAGE SIZE COMPARISON"
           echo "==============================="
           docker images kumargi/node-singlestage-app:latest
           docker images kumargi/node-multistage-app:latest
 
-      - name: Show Image Layers
+      - name: Compare Image Layers
         run: |
-          echo "===== Single Stage ====="
+          echo "==============================="
+          echo "SINGLE-STAGE LAYERS"
+          echo "==============================="
           docker history kumargi/node-singlestage-app:latest
 
           echo ""
-          echo "===== Multi Stage ====="
+
+          echo "==============================="
+          echo "MULTI-STAGE LAYERS"
+          echo "==============================="
           docker history kumargi/node-multistage-app:latest
 
       - name: Check Prometheus
         run: |
+          echo "Checking Prometheus..."
           curl --fail http://localhost:9090/-/healthy
 
       - name: Check Grafana
         run: |
+          echo "Checking Grafana..."
           curl --fail http://localhost:3001/api/health
 
       - name: Check cAdvisor
         run: |
+          echo "Checking cAdvisor..."
           curl --fail http://localhost:8080/
+
+      - name: Show Multi-stage Logs
+        if: always()
+        run: |
+          echo "==============================="
+          echo "MULTI-STAGE LOGS"
+          echo "==============================="
+          docker logs multi-stage || true
+
+      - name: Show Single-stage Logs
+        if: always()
+        run: |
+          echo "==============================="
+          echo "SINGLE-STAGE LOGS"
+          echo "==============================="
+          docker logs single-stage || true
 
       - name: Docker Compose Logs
         if: always()
