@@ -1,46 +1,46 @@
-name: Docker Monitoring Stack
+version: "3.8"
 
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+services:
 
-jobs:
-  monitoring:
-    runs-on: ubuntu-latest
+  single-stage:
+    image: YOUR_DOCKERHUB_USERNAME/node-singlestage-app:latest
+    container_name: single-stage
+    ports:
+      - "3002:3000"
 
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+  multi-stage:
+    image: YOUR_DOCKERHUB_USERNAME/node-multistage-app:latest
+    container_name: multi-stage
+    ports:
+      - "3003:3000"
 
-      - name: Verify Docker
-        run: docker --version
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    ports:
+      - "8080:8080"
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
 
-      - name: Verify Docker Compose
-        run: docker compose version
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
 
-      - name: Start Monitoring Stack
-        run: docker compose up -d
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana
 
-      - name: List Running Containers
-        run: docker ps -a
-
-      - name: Show Container Logs
-        run: docker compose logs
-
-      - name: Wait for Services
-        run: sleep 60
-
-      - name: Test Prometheus
-        run: curl --fail http://localhost:9090/-/healthy
-
-      - name: Test Grafana
-        run: curl --fail http://localhost:3001/api/health
-
-      - name: Test cAdvisor
-        run: curl --fail http://localhost:8080/
-
-      - name: Stop Monitoring Stack
-        if: always()
-        run: docker compose down
+volumes:
+  grafana-storage:
