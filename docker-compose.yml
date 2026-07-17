@@ -2,6 +2,18 @@ version: "3.8"
 
 services:
 
+  single-stage:
+    image: YOUR_DOCKERHUB_USERNAME/node-singlestage-app:latest
+    container_name: single-stage
+    ports:
+      - "3002:3000"
+
+  multi-stage:
+    image: YOUR_DOCKERHUB_USERNAME/node-multistage-app:latest
+    container_name: multi-stage
+    ports:
+      - "3003:3000"
+
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
     container_name: cadvisor
