@@ -1,0 +1,46 @@
+name: Docker Monitoring Stack
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  monitoring:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show Docker version
+        run: docker --version
+
+      - name: Show Docker Compose version
+        run: docker compose version
+
+      - name: Start monitoring stack
+        run: docker compose up -d
+
+      - name: List running containers
+        run: docker ps -a
+
+      - name: Show container logs
+        run: docker compose logs
+
+      - name: Wait for services
+        run: sleep 60
+
+      - name: Check Prometheus
+        run: curl http://localhost:9090/-/healthy
+
+      - name: Check Grafana
+        run: curl http://localhost:3001/api/health
+
+      - name: Check cAdvisor
+        run: curl http://localhost:8080/
+
+      - name: Stop monitoring stack
+        if: always()
+        run: docker compose down
