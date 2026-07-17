@@ -60,11 +60,33 @@ jobs:
           echo "==============================="
           echo "MULTI-STAGE CONTAINER STATUS"
           echo "==============================="
-          docker inspect multi-stage \
-          --format='Status={{.State.Status}}
-          ExitCode={{.State.ExitCode}}
-          Started={{.State.StartedAt}}
-          Finished={{.State.FinishedAt}}'
+          docker inspect multi-stage --format='Status={{.State.Status}}'
+          docker inspect multi-stage --format='ExitCode={{.State.ExitCode}}'
+          docker inspect multi-stage --format='Started={{.State.StartedAt}}'
+          docker inspect multi-stage --format='Finished={{.State.FinishedAt}}'
+
+      - name: Inspect Multi-stage Image
+        run: |
+          echo "==============================="
+          echo "MULTI-STAGE IMAGE DETAILS"
+          echo "==============================="
+          docker image inspect kumargi/node-multistage-app:latest --format='Entrypoint={{json .Config.Entrypoint}}'
+          docker image inspect kumargi/node-multistage-app:latest --format='Cmd={{json .Config.Cmd}}'
+          docker image inspect kumargi/node-multistage-app:latest --format='WorkingDir={{.Config.WorkingDir}}'
+
+      - name: List Files Inside Multi-stage Image
+        run: |
+          echo "==============================="
+          echo "FILES INSIDE /app"
+          echo "==============================="
+          docker run --rm --entrypoint ls kumargi/node-multistage-app:latest -la /app
+
+      - name: Test Multi-stage Image
+        run: |
+          echo "==============================="
+          echo "RUNNING IMAGE MANUALLY"
+          echo "==============================="
+          docker run --rm kumargi/node-multistage-app:latest || true
 
       - name: Show CPU & Memory Usage
         run: |
