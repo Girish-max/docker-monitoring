@@ -24,19 +24,22 @@ jobs:
         run: docker compose up -d
 
       - name: List Running Containers
-        run: docker ps
+        run: docker ps -a
+
+      - name: Show Container Logs
+        run: docker compose logs
 
       - name: Wait for Services
-        run: sleep 20
+        run: sleep 60
 
       - name: Test Prometheus
-        run: curl http://localhost:9090/-/healthy
+        run: curl --fail http://localhost:9090/-/healthy
 
       - name: Test Grafana
-        run: curl http://localhost:3000/login
+        run: curl --fail http://localhost:3001/api/health
 
       - name: Test cAdvisor
-        run: curl http://localhost:8080/
+        run: curl --fail http://localhost:8080/
 
       - name: Stop Monitoring Stack
         if: always()
