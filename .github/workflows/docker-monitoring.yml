@@ -1,46 +1,80 @@
-version: "3.8"
+name: Docker Monitoring Stack
 
-services:
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
 
-  single-stage:
-    image: kumargi/node-singlestage-app:latest
-    container_name: single-stage
-    ports:
-      - "3002:3000"
+jobs:
+  monitoring:
+    runs-on: ubuntu-latest
 
-  multi-stage:
-    image: kumargi/node-multistage-app:latest
-    container_name: multi-stage
-    ports:
-      - "3003:3000"
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
-    container_name: cadvisor
-    ports:
-      - "8080:8080"
-    privileged: true
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
-      - /var/lib/docker:/var/lib/docker:ro
+      - name: Verify Docker
+        run: |
+          docker --version
+          docker compose version
 
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - name: Pull Docker Images
+        run: |
+          docker pull kumargi/node-singlestage-app:latest
+          docker pull kumargi/node-multistage-app:latest
+          docker pull gcr.io/cadvisor/cadvisor:latest
+          docker pull prom/prometheus:latest
+          docker pull grafana/grafana-oss:latest
 
-  grafana:
-    image: grafana/grafana-oss:latest
-    container_name: grafana
-    ports:
-      - "3001:3000"
-    volumes:
-      - grafana-storage:/var/lib/grafana
+      - name: Start Monitoring Stack
+        run: docker compose up -d
 
-volumes:
-  grafana-storage:
+      - name: Wait for Services
+        run: sleep 40
+
+      - name: Show Docker Images
+        run: docker images
+
+      - name: Show Running Containers
+        run: docker ps -a
+
+      - name: Show CPU & Memory Usage
+        run: docker stats --no-stream
+
+      - name: Compare Image Sizes
+        run: |
+          echo "==============================="
+          echo "Docker Image Size Comparison"
+          echo "==============================="
+          docker images kumargi/node-singlestage-app:latest
+          docker images kumargi/node-multistage-app:latest
+
+      - name: Show Image Layers
+        run: |
+          echo "===== Single Stage ====="
+          docker history kumargi/node-singlestage-app:latest
+
+          echo ""
+          echo "===== Multi Stage ====="
+          docker history kumargi/node-multistage-app:latest
+
+      - name: Check Prometheus
+        run: |
+          curl --fail http://localhost:9090/-/healthy
+
+      - name: Check Grafana
+        run: |
+          curl --fail http://localhost:3001/api/health
+
+      - name: Check cAdvisor
+        run: |
+          curl --fail http://localhost:8080/
+
+      - name: Docker Compose Logs
+        if: always()
+        run: docker compose logs
+
+      - name: Stop Monitoring Stack
+        if: always()
+        run: docker compose down
