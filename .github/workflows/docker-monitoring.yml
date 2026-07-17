@@ -1,0 +1,10 @@
+name: Docker Monitoring Stack
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+jobs
