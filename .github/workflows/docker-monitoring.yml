@@ -1,13 +1,10 @@
-name: Docker Monitoring Stack
+name: Docker Monitoring
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 jobs:
-  monitoring:
+  monitor:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,22 +16,24 @@ jobs:
           docker --version
           docker compose version
 
-      - name: Pull Docker Images
+      - name: Remove Old Images (if any)
+        run: |
+          docker rmi -f kumargi/node-singlestage-app:latest || true
+          docker rmi -f kumargi/node-multistage-app:latest || true
+
+      - name: Pull Latest Images
         run: |
           docker pull kumargi/node-singlestage-app:latest
           docker pull kumargi/node-multistage-app:latest
-          docker pull gcr.io/cadvisor/cadvisor:latest
-          docker pull prom/prometheus:latest
-          docker pull grafana/grafana-oss:latest
 
       - name: Start Monitoring Stack
-        run: docker compose up -d
+        run: |
+          docker compose up -d
 
-      - name: Wait for Services
-        run: sleep 30
-
-      - name: Show Docker Images
-        run: docker images
+      - name: Wait for Containers
+        run: |
+          echo "Waiting for containers to start..."
+          sleep 20
 
       - name: Show Running Containers
         run: |
@@ -43,57 +42,12 @@ jobs:
           echo "==============================="
           docker ps
 
-          echo ""
+      - name: Show All Containers
+        run: |
           echo "==============================="
           echo "ALL CONTAINERS"
           echo "==============================="
           docker ps -a
-
-          echo ""
-          echo "==============================="
-          echo "DOCKER COMPOSE STATUS"
-          echo "==============================="
-          docker compose ps
-
-      - name: Inspect Multi-stage Container
-        run: |
-          echo "==============================="
-          echo "MULTI-STAGE CONTAINER STATUS"
-          echo "==============================="
-          docker inspect multi-stage --format='Status={{.State.Status}}'
-          docker inspect multi-stage --format='ExitCode={{.State.ExitCode}}'
-          docker inspect multi-stage --format='Started={{.State.StartedAt}}'
-          docker inspect multi-stage --format='Finished={{.State.FinishedAt}}'
-
-      - name: Inspect Multi-stage Image
-        run: |
-          echo "==============================="
-          echo "MULTI-STAGE IMAGE DETAILS"
-          echo "==============================="
-          docker image inspect kumargi/node-multistage-app:latest --format='Entrypoint={{json .Config.Entrypoint}}'
-          docker image inspect kumargi/node-multistage-app:latest --format='Cmd={{json .Config.Cmd}}'
-          docker image inspect kumargi/node-multistage-app:latest --format='WorkingDir={{.Config.WorkingDir}}'
-
-      - name: List Files Inside Multi-stage Image
-        run: |
-          echo "==============================="
-          echo "FILES INSIDE /app"
-          echo "==============================="
-          docker run --rm --entrypoint ls kumargi/node-multistage-app:latest -la /app
-
-      - name: Test Multi-stage Image
-        run: |
-          echo "==============================="
-          echo "RUNNING IMAGE MANUALLY"
-          echo "==============================="
-          docker run --rm kumargi/node-multistage-app:latest || true
-
-      - name: Show CPU & Memory Usage
-        run: |
-          echo "==============================="
-          echo "DOCKER STATS"
-          echo "==============================="
-          docker stats --no-stream
 
       - name: Compare Image Sizes
         run: |
@@ -101,57 +55,66 @@ jobs:
           echo "IMAGE SIZE COMPARISON"
           echo "==============================="
           docker images kumargi/node-singlestage-app:latest
+          echo ""
           docker images kumargi/node-multistage-app:latest
 
       - name: Compare Image Layers
         run: |
           echo "==============================="
-          echo "SINGLE-STAGE LAYERS"
+          echo "SINGLE-STAGE IMAGE LAYERS"
           echo "==============================="
           docker history kumargi/node-singlestage-app:latest
 
           echo ""
 
           echo "==============================="
-          echo "MULTI-STAGE LAYERS"
+          echo "MULTI-STAGE IMAGE LAYERS"
           echo "==============================="
           docker history kumargi/node-multistage-app:latest
 
-      - name: Check Prometheus
-        run: |
-          echo "Checking Prometheus..."
-          curl --fail http://localhost:9090/-/healthy
-
-      - name: Check Grafana
-        run: |
-          echo "Checking Grafana..."
-          curl --fail http://localhost:3001/api/health
-
-      - name: Check cAdvisor
-        run: |
-          echo "Checking cAdvisor..."
-          curl --fail http://localhost:8080/
-
-      - name: Show Multi-stage Logs
-        if: always()
+      - name: CPU and Memory Usage
         run: |
           echo "==============================="
-          echo "MULTI-STAGE LOGS"
+          echo "DOCKER STATS"
           echo "==============================="
-          docker logs multi-stage || true
+          docker stats --no-stream
 
-      - name: Show Single-stage Logs
-        if: always()
+      - name: Application Logs
         run: |
           echo "==============================="
           echo "SINGLE-STAGE LOGS"
           echo "==============================="
           docker logs single-stage || true
 
-      - name: Docker Compose Logs
-        if: always()
-        run: docker compose logs
+          echo ""
 
-      - name: Stop Monitoring Stack
+          echo "==============================="
+          echo "MULTI-STAGE LOGS"
+          echo "==============================="
+          docker logs multi-stage || true
+
+      - name: Health Checks
+        run: |
+          echo "==============================="
+          echo "PROMETHEUS"
+          echo "==============================="
+          curl --fail http://localhost:9090/-/healthy || true
+
+          echo ""
+
+          echo "==============================="
+          echo "GRAFANA"
+          echo "==============================="
+          curl --fail http://localhost:3001/api/health || true
+
+          echo ""
+
+          echo "==============================="
+          echo "CADVISOR"
+          echo "==============================="
+          curl --fail http://localhost:8080/healthz || true
+
+      - name: Stop Containers
         if: always()
-        run: docker compose down
+        run: |
+          docker compose down
