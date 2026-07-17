@@ -4,7 +4,40 @@ on:
   push:
     branches:
       - main
-
   workflow_dispatch:
 
-jobs
+jobs:
+  monitoring:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Verify Docker
+        run: docker --version
+
+      - name: Verify Docker Compose
+        run: docker compose version
+
+      - name: Start Monitoring Stack
+        run: docker compose up -d
+
+      - name: List Running Containers
+        run: docker ps
+
+      - name: Wait for Services
+        run: sleep 20
+
+      - name: Test Prometheus
+        run: curl http://localhost:9090/-/healthy
+
+      - name: Test Grafana
+        run: curl http://localhost:3000/login
+
+      - name: Test cAdvisor
+        run: curl http://localhost:8080/
+
+      - name: Stop Monitoring Stack
+        if: always()
+        run: docker compose down
